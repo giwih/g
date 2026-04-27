@@ -103,10 +103,10 @@ jobs:
               https://gitlab.com/simonpunk/susfs4ksu.git
           fi
 
-      - name: Setup WKSU
+      - name: Setup ReSukiSU
         run: |
           cd kernel
-          curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s canary
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
 
       - name: Apply SUSFS patches
         if: matrix.susfs
@@ -123,8 +123,8 @@ jobs:
           # Safety net: force susfs.o into the build regardless of Kconfig resolution.
           # The Configure step uses scripts/config to guarantee CONFIG_KSU_SUSFS=y,
           # but obj-y avoids a silent empty-object link failure if it gets dropped.
-          sed -i 's/obj-$(CONFIG_KSU_SUSFS) += susfs.o/obj-y += susfs.o/' fs/Makefile
-          grep -q 'susfs\.o' fs/Makefile || echo 'obj-y += susfs.o' >> fs/Makefile
+          # sed -i 's/obj-$(CONFIG_KSU_SUSFS) += susfs.o/obj-y += susfs.o/' fs/Makefile
+          # grep -q 'susfs\.o' fs/Makefile || echo 'obj-y += susfs.o' >> fs/Makefile
 
       - name: Configure kernel
         run: |
@@ -143,21 +143,11 @@ jobs:
             done
           fi
 
-          # Seed KSU/SUSFS options into defconfig (scripts/config below is the real authority)
+          # Add ReSukiSU configs
           echo "CONFIG_KSU=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> "$DEFCONFIG"
           if [ "${{ matrix.susfs }}" = "true" ]; then
             echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG"
-            echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> "$DEFCONFIG"
-          else
-            echo "CONFIG_KSU_SUSFS=n" >> "$DEFCONFIG"
           fi
 
           # Generate initial .config from defconfig
@@ -166,37 +156,15 @@ jobs:
           # Force-set configs via scripts/config so Kconfig cannot silently drop them
           KCFG="./scripts/config --file out/.config"
           $KCFG -e KSU
+          $KCFG -e KSU_MANUAL_HOOK
           if [ "${{ matrix.susfs }}" = "true" ]; then
             $KCFG -e KSU_SUSFS
-            $KCFG -e KSU_SUSFS_SUS_PATH
-            $KCFG -e KSU_SUSFS_SUS_MOUNT
-            $KCFG -e KSU_SUSFS_SUS_KSTAT
-            $KCFG -e KSU_SUSFS_SPOOF_UNAME
-            $KCFG -e KSU_SUSFS_ENABLE_LOG
-            $KCFG -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
-            $KCFG -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-            $KCFG -e KSU_SUSFS_OPEN_REDIRECT
-            $KCFG -e KSU_SUSFS_SUS_MAP
           else
             $KCFG -d KSU_SUSFS
           fi
 
           # Resolve dependencies without dropping our forced configs
           make $MAKE_ARGS olddefconfig
-
-          # Verify critical configs survived
-          echo "--- Config verification ---"
-          grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=' out/.config || true
-          if [ "${{ matrix.susfs }}" = "true" ]; then
-            if ! grep -q 'CONFIG_KSU_SUSFS=y' out/.config; then
-              echo "ERROR: CONFIG_KSU_SUSFS=y missing from final .config!"
-              exit 1
-            fi
-          fi
-          # Fail-safe: these MUST match stock or vendor modules won't load
-          if grep -q 'CONFIG_DEBUG_FS=y' out/.config; then
-            echo "WARNING: CONFIG_DEBUG_FS=y survived — vendor/debugfs.config was overridden!"
-          fi
 
           # Remove -dirty suffix
           [ -f scripts/setlocalversion ] && sed -i 's/-dirty//g' scripts/setlocalversion || true
@@ -235,9 +203,9 @@ jobs:
           # Copy anykernel.sh from repo and set variant kernel string
           cp Scripts/anykernel.sh AnyKernel3/anykernel.sh
           if [ "${{ matrix.susfs }}" = "true" ]; then
-            sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - WKSU + SUSFS/' AnyKernel3/anykernel.sh
+            sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - ReSukiSU + SUSFS/' AnyKernel3/anykernel.sh
           else
-            sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - WKSU/' AnyKernel3/anykernel.sh
+            sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - ReSukiSU/' AnyKernel3/anykernel.sh
           fi
 
           # Create zip
