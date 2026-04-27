@@ -65,14 +65,6 @@ jobs:
         CC=clang CXX=clang++
         HOSTCC=clang HOSTCXX=clang++
         O=out
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - variant: ReSukiSU-SUSFS
-            susfs: true
-          - variant: ReSukiSU
-            susfs: false
 
     steps:
       - name: Checkout repo
@@ -97,11 +89,9 @@ jobs:
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git
           rm -rf AnyKernel3/.git
 
-          # SUSFS (only for SUSFS variant)
-          if [ "${{ matrix.susfs }}" = "true" ]; then
-            git clone --depth=1 -b gki-android13-5.10 \
-              https://gitlab.com/simonpunk/susfs4ksu.git
-          fi
+          # SUSFS
+          git clone --depth=1 -b gki-android13-5.10 \
+            https://gitlab.com/simonpunk/susfs4ksu.git
 
       - name: Setup ReSukiSU
         run: |
@@ -109,7 +99,6 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
 
       - name: Apply SUSFS patches
-        if: matrix.susfs
         run: |
           cd kernel
 
@@ -126,14 +115,15 @@ jobs:
           # sed -i 's/obj-$(CONFIG_KSU_SUSFS) += susfs.o/obj-y += susfs.o/' fs/Makefile
           # grep -q 'susfs\.o' fs/Makefile || echo 'obj-y += susfs.o' >> fs/Makefile
 
-      - name: Add ReSukiSU patches
-        run: |
-          cd kernel
-          # Apply ReSukiSU patches
-          find ../patches -type f -name '*.diff' | while read -r patch; do
-            echo "Applying $patch"
-            patch -p1 < "$patch"
-          done
+      # In case I need the below for other kernel I keep it but not needed rn :b
+      # - name: Add ReSukiSU patches
+      #   run: |
+      #     cd kernel
+      #     # Apply ReSukiSU patches
+      #     find ../patches -type f -name '*.diff' | while read -r patch; do
+      #       echo "Applying $patch"
+      #       patch -p1 < "$patch"
+      #     done
 
       - name: Configure kernel
         run: |
@@ -154,10 +144,7 @@ jobs:
 
           # Add ReSukiSU configs
           echo "CONFIG_KSU=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_MANUAL_HOOK=y" >> "$DEFCONFIG"
-          if [ "${{ matrix.susfs }}" = "true" ]; then
-            echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
-          fi
+          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
 
           # Generate initial .config from defconfig
           make $MAKE_ARGS "${{ inputs.kernel_defconfig || 'gki_defconfig' }}"
@@ -165,12 +152,7 @@ jobs:
           # Force-set configs via scripts/config so Kconfig cannot silently drop them
           KCFG="./scripts/config --file out/.config"
           $KCFG -e KSU
-          $KCFG -e KSU_MANUAL_HOOK
-          if [ "${{ matrix.susfs }}" = "true" ]; then
-            $KCFG -e KSU_SUSFS
-          else
-            $KCFG -d KSU_SUSFS
-          fi
+          $KCFG -e KSU_SUSFS
 
           # Resolve dependencies without dropping our forced configs
           make $MAKE_ARGS olddefconfig
@@ -211,21 +193,17 @@ jobs:
 
           # Copy anykernel.sh from repo and set variant kernel string
           cp Scripts/anykernel.sh AnyKernel3/anykernel.sh
-          if [ "${{ matrix.susfs }}" = "true" ]; then
-            sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - ReSukiSU + SUSFS/' AnyKernel3/anykernel.sh
-          else
-            sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - ReSukiSU/' AnyKernel3/anykernel.sh
-          fi
+          sed -i 's/kernel.string=.*/kernel.string=NP2 Kernel - ReSukiSU/' AnyKernel3/anykernel.sh
 
           # Create zip
           cd AnyKernel3
-          ZIP_NAME="${{ matrix.variant }}-NP2-Pong.zip"
+          ZIP_NAME="ReSukiSU-NP2-Pong.zip"
           zip -r9 "../$ZIP_NAME" ./*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-NP2-${{ matrix.variant }}
+          name: kernel-NP2-ReSukiSU
           path: "*.zip"
           retention-days: 30
 
@@ -233,7 +211,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: config-NP2-${{ matrix.variant }}
+          name: config-NP2-ReSukiSU
           path: kernel/out/.config
           retention-days: 1
 
@@ -256,5 +234,5 @@ jobs:
         if: always() && steps.collect_rej.outputs.found == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: rej-NP2-${{ matrix.variant }}
+          name: rej-NP2-ReSukiSU
           path: rej/
