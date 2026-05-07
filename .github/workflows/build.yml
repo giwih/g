@@ -32,6 +32,11 @@ on:
         required: false
         type: string
         default: 'gki-android13-5.10'
+      susfs_force:
+        description: 'Force SUSFS patch apply (ignore failures)'
+        required: false
+        type: boolean
+        default: false
       extra_patches_dir:
         description: 'Extra patch directory (repo-local)'
         required: false
@@ -65,6 +70,10 @@ on:
         required: false
         type: string
         default: 'gki-android13-5.10'
+      susfs_force:
+        required: false
+        type: boolean
+        default: false
       extra_patches_dir:
         required: false
         type: string
@@ -153,13 +162,17 @@ jobs:
           cp ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           susfs_patch="../susfs4ksu/kernel_patches/50_add_susfs_in_${{ inputs.susfs_branch || 'gki-android13-5.10' }}.patch"
-          if patch -p1 -N --dry-run < "$susfs_patch" >/dev/null 2>&1; then
-            patch -p1 -N < "$susfs_patch"
-          elif patch -p1 -R --dry-run < "$susfs_patch" >/dev/null 2>&1; then
-            echo "Already applied: $susfs_patch"
+          if [ "${{ inputs.susfs_force }}" = "true" ]; then
+            patch -p1 --force < "$susfs_patch" || true
           else
-            echo "Failed to apply: $susfs_patch" >&2
-            exit 1
+            if patch -p1 -N --dry-run < "$susfs_patch" >/dev/null 2>&1; then
+              patch -p1 -N < "$susfs_patch"
+            elif patch -p1 -R --dry-run < "$susfs_patch" >/dev/null 2>&1; then
+              echo "Already applied: $susfs_patch"
+            else
+              echo "Failed to apply: $susfs_patch" >&2
+              exit 1
+            fi
           fi
 
       - name: Apply BBG patches
