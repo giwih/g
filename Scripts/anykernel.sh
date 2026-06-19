@@ -3,7 +3,7 @@
 
 ## AnyKernel setup
 properties() { '
-kernel.string=NP3 Kernel - KSU-Next
+kernel.string=NP3a Kernel - KSU-Next
 do.devicecheck=1
 do.modules=0
 do.systemless=1

@@ -69,16 +69,16 @@ EXTRA_CFG="out/ci-extra.config"
 : > "${EXTRA_CFG}"
 
 echo "CONFIG_KSU=y" >> "${EXTRA_CFG}"
-echo "CONFIG_KPROBES=y" >> "${EXTRA_CFG}"
-echo "CONFIG_KALLSYMS=y" >> "${EXTRA_CFG}"
-echo "CONFIG_KALLSYMS_ALL=y" >> "${EXTRA_CFG}"
 
 if [ "${SUSFS_SUPPORT}" = "true" ]; then
   echo "CONFIG_KSU_SUSFS=y" >> "${EXTRA_CFG}"
 fi
 
-if [ "${BBG_SUPPORT}" = "true" ]; then
-  echo "CONFIG_BBG=y" >> "${EXTRA_CFG}"
+if [ "${KPM_SUPPORT}" = "true" ]; then
+  echo "CONFIG_KPM=y" >> "${EXTRA_CFG}"
+  echo "CONFIG_KALLSYMS=y" >> "${EXTRA_CFG}"
+  echo "CONFIG_KALLSYMS_ALL=y" >> "${EXTRA_CFG}"
+  echo "CONFIG_KPROBES=y" >> "${EXTRA_CFG}"
 fi
 
 cat "${EXTRA_CFG}" >> out/.config
@@ -87,4 +87,4 @@ make ${MAKE_ARGS} olddefconfig
 
 JOBS=$(( $(nproc) / 2 ))
 [ "${JOBS}" -lt 1 ] && JOBS=1
-make -j"${JOBS}" ${MAKE_ARGS} Image modules dtbs KCFLAGS="-Wno-error"
+make -j"${JOBS}" ${MAKE_ARGS} Image KCFLAGS="-Wno-error"
