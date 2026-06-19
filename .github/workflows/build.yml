@@ -188,6 +188,8 @@ jobs:
       - name: Clone devicetrees
         if: ${{ inputs.devicetrees_repo != '' }}
         run: |
+          git rm -f ${KERNEL_DIR}/arch/arm64/boot/dts/vendor || true
+          rm -rf ${KERNEL_DIR}/arch/arm64/boot/dts/vendor
           git clone --depth=1 -b "${{ inputs.devicetrees_branch || '6.6/lineage-23.2' }}" \
             "${{ inputs.devicetrees_repo }}" \
             "${KERNEL_DIR}/arch/arm64/boot/dts/vendor"
@@ -195,6 +197,8 @@ jobs:
       - name: Clone modules
         if: ${{ inputs.modules_repo != '' }}
         run: |
+          git rm -f ${KERNEL_DIR}-modules || true
+          rm -rf ${KERNEL_DIR}-modules
           git clone --depth=1 -b "${{ inputs.modules_branch || '6.6/lineage-23.2' }}" \
             "${{ inputs.modules_repo }}" \
             "${KERNEL_DIR}-modules"
